@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sunny & Riya — Budget Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+:root{--green:#1D9E75;--green-light:#E1F5EE;--green-dark:#0F6E56;--blue:#378ADD;--blue-light:#E6F1FB;--blue-dark:#185FA5;--red:#D85A30;--red-light:#FAECE7;--amber:#BA7517;--amber-light:#FAEEDA;--gray-50:#F8F8F6;--gray-100:#F1EFEA;--gray-200:#E3E1DA;--gray-400:#9A9890;--gray-600:#5F5E5A;--gray-900:#1A1A18;--white:#FFFFFF;--radius-sm:6px;--radius-md:10px;--radius-lg:14px;--radius-xl:20px;--shadow-sm:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.04);--shadow-md:0 4px 16px rgba(0,0,0,.1),0 2px 4px rgba(0,0,0,.05)}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:16px}
+body{font-family:'DM Sans',sans-serif;background:var(--gray-50);color:var(--gray-900);min-height:100vh;line-height:1.5}
+.header{background:var(--white);border-bottom:1px solid var(--gray-200);padding:0 24px;position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;height:60px;gap:16px}
+.logo{font-size:17px;font-weight:600;display:flex;align-items:center;gap:10px;white-space:nowrap}
+.logo-icon{width:32px;height:32px;background:linear-gradient(135deg,var(--green),var(--blue));border-radius:8px;display:flex;align-items:center;justify-content:center;color:white;font-size:14px}
+.logo-sub{font-size:13px;font-weight:400;color:var(--gray-400)}
+.header-right{display:flex;align-items:center;gap:12px}
+.sync-status{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--gray-400);padding:5px 10px;background:var(--gray-100);border-radius:999px}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--green);transition:background .3s}
+.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite}
+.sync-dot.error{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.user-switcher{display:flex;background:var(--gray-100);border-radius:999px;padding:3px;gap:2px}
+.user-btn{padding:5px 14px;border-radius:999px;border:none;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--gray-600);transition:all .15s}
+.user-btn.active-sunny{background:var(--white);color:var(--green-dark);box-shadow:var(--shadow-sm)}
+.user-btn.active-riya{background:var(--white);color:var(--blue-dark);box-shadow:var(--shadow-sm)}
+.container{max-width:1100px;margin:0 auto;padding:24px 20px}
+.month-bar{display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap}
+.month-label{font-size:22px;font-weight:600}
+.month-navbtn{padding:6px 10px;border-radius:8px;border:1px solid var(--gray-200);background:var(--white);cursor:pointer;font-size:16px;color:var(--gray-600);transition:all .15s;font-family:'DM Sans',sans-serif}
+.month-navbtn:hover{background:var(--gray-100)}
+.month-badge{padding:4px 10px;border-radius:999px;background:var(--green-light);color:var(--green-dark);font-size:12px;font-weight:500}
+.tabs-bar{display:flex;gap:2px;background:var(--gray-100);border-radius:var(--radius-md);padding:4px;margin-bottom:24px;width:fit-content}
+.tab-btn{padding:7px 18px;border-radius:7px;border:none;font-size:13px;font-weight:500;font-family:'DM Sans',sans-serif;cursor:pointer;background:transparent;color:var(--gray-600);transition:all .15s;display:flex;align-items:center;gap:6px}
+.tab-btn.active{background:var(--white);color:var(--gray-900);box-shadow:var(--shadow-sm)}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.metric-card{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--gray-200);padding:18px 20px;position:relative;overflow:hidden}
+.metric-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px}
+.metric-card.income::before{background:var(--green)}
+.metric-card.expense::before{background:var(--red)}
+.metric-card.invest::before{background:var(--amber)}
+.metric-card.surplus::before{background:var(--blue)}
+.metric-icon{font-size:14px;margin-bottom:8px}
+.metric-icon.income{color:var(--green)}.metric-icon.expense{color:var(--red)}.metric-icon.invest{color:var(--amber)}.metric-icon.surplus{color:var(--blue)}
+.metric-label{font-size:12px;color:var(--gray-400);font-weight:500;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.metric-value{font-size:26px;font-weight:600;font-family:'DM Mono',monospace;line-height:1.1}
+.metric-value.green{color:var(--green-dark)}.metric-value.red{color:var(--red)}.metric-value.amber{color:var(--amber)}.metric-value.blue{color:var(--blue-dark)}
+.metric-sub{font-size:12px;color:var(--gray-400);margin-top:4px}
+.progress-bar{height:4px;background:var(--gray-100);border-radius:2px;margin-top:10px;overflow:hidden}
+.progress-fill{height:100%;border-radius:2px;transition:width .6s ease}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}
+.card{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--gray-200);padding:20px;margin-bottom:16px}
+.card-title{font-size:13px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;margin-bottom:16px;display:flex;align-items:center;gap:6px}
+.chart-container{position:relative}
+.table-card{background:var(--white);border-radius:var(--radius-lg);border:1px solid var(--gray-200);overflow:hidden;margin-bottom:16px}
+.table-header{padding:14px 20px;border-bottom:1px solid var(--gray-100);display:flex;align-items:center;justify-content:space-between}
+.table-header-title{font-size:13px;font-weight:600;color:var(--gray-600);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;gap:6px}
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 16px;font-size:11px;font-weight:600;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;text-align:left;background:var(--gray-50);border-bottom:1px solid var(--gray-100)}
+tbody tr{border-bottom:1px solid var(--gray-100);transition:background .1s}
+tbody tr:last-child{border-bottom:none}
+tbody tr:hover{background:var(--gray-50)}
+tbody td{padding:11px 16px;font-size:14px;vertical-align:middle}
+.cat-name{font-weight:500}
+.editable input{width:100%;border:1px solid transparent;border-radius:var(--radius-sm);padding:6px 8px;font-size:13px;font-family:'DM Mono',monospace;color:var(--gray-900);background:transparent;transition:all .15s;text-align:right}
+.editable input:hover{border-color:var(--gray-200);background:var(--gray-50)}
+.editable input:focus{outline:none;border-color:var(--green);background:var(--green-light)}
+.total-row td{font-weight:600;background:var(--gray-50);font-family:'DM Mono',monospace;font-size:13px}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;margin-top:3px}
+.badge-over{background:var(--red-light);color:var(--red)}
+.badge-under{background:var(--green-light);color:var(--green-dark)}
+.badge-ok{background:var(--green-light);color:var(--green-dark)}
+.btn-add{width:100%;padding:12px;border:1.5px dashed var(--gray-200);border-radius:var(--radius-md);background:transparent;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--gray-400);cursor:pointer;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-add:hover{background:var(--green-light);border-color:var(--green);color:var(--green-dark)}
+.activity-item{display:flex;align-items:flex-start;justify-content:space-between;padding:12px 20px;gap:12px;border-bottom:1px solid var(--gray-100);font-size:13px}
+.activity-item:last-child{border-bottom:none}
+.activity-user{display:inline-flex;align-items:center;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;margin-right:6px;flex-shrink:0}
+.activity-user.sunny{background:var(--green-light);color:var(--green-dark)}
+.activity-user.riya{background:var(--blue-light);color:var(--blue-dark)}
+.activity-time{font-size:11px;color:var(--gray-400);white-space:nowrap;flex-shrink:0}
+.empty-state{text-align:center;padding:40px 20px;color:var(--gray-400);font-size:14px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:var(--radius-xl);padding:24px;width:340px;box-shadow:var(--shadow-md);animation:slideUp .2s ease}
+@keyframes slideUp{from{transform:translateY(12px);opacity:0}to{transform:none;opacity:1}}
+.modal h3{font-size:16px;font-weight:600;margin-bottom:16px}
+.form-field{margin-bottom:14px}
+.form-field label{display:block;font-size:12px;font-weight:500;color:var(--gray-600);margin-bottom:5px}
+.form-field input{width:100%;padding:9px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-md);font-size:14px;font-family:'DM Sans',sans-serif;color:var(--gray-900);background:var(--white);transition:border-color .15s}
+.form-field input:focus{outline:none;border-color:var(--green);box-shadow:0 0 0 3px rgba(29,158,117,.1)}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px}
+.btn-cancel{padding:9px 18px;border-radius:var(--radius-md);border:1px solid var(--gray-200);background:var(--white);color:var(--gray-600);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:500}
+.btn-cancel:hover{background:var(--gray-100)}
+.btn-save{padding:9px 20px;border-radius:var(--radius-md);border:none;background:var(--green);color:var(--white);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:600}
+.btn-save:hover{background:var(--green-dark)}
+.btn-delete{margin-right:auto;padding:9px 18px;border-radius:var(--radius-md);border:1px solid var(--red-light);background:var(--red-light);color:var(--red);font-size:14px;font-family:'DM Sans',sans-serif;cursor:pointer;font-weight:500}
+#setup-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.setup-card{background:var(--white);border-radius:var(--radius-xl);border:1px solid var(--gray-200);padding:32px;max-width:480px;width:100%;box-shadow:var(--shadow-md)}
+.setup-icon{width:52px;height:52px;background:linear-gradient(135deg,var(--green),var(--blue));border-radius:14px;display:flex;align-items:center;justify-content:center;color:white;font-size:22px;margin-bottom:20px}
+.setup-card h1{font-size:22px;font-weight:700;margin-bottom:6px}
+.setup-card p{font-size:14px;color:var(--gray-400);margin-bottom:24px}
+.info-box{background:var(--blue-light);border-radius:var(--radius-md);padding:12px 14px;font-size:13px;color:var(--blue-dark);margin-bottom:20px;line-height:1.6}
+.info-box code{font-family:'DM Mono',monospace;font-size:12px;background:rgba(55,138,221,.15);padding:1px 5px;border-radius:4px}
+.step{display:flex;gap:10px;align-items:flex-start;font-size:13px;margin-bottom:10px;color:var(--gray-600)}
+.step-num{width:22px;height:22px;border-radius:50%;background:var(--green);color:white;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+@media(max-width:700px){.charts-row{grid-template-columns:1fr}.header{padding:0 14px}.logo-sub{display:none}.container{padding:16px 14px}.tabs-bar{width:100%;overflow-x:auto}}
+</style>
+</head>
+<body>
+
+<!-- Setup Screen -->
+<div id="setup-screen" style="display:none">
+  <div class="setup-card">
+    <div class="setup-icon"><i class="fas fa-wallet"></i></div>
+    <h1>Welcome, Sunny & Riya!</h1>
+    <p>One-time setup to connect your shared real-time database. Takes about 3 minutes.</p>
+    <div class="info-box">
+      <strong>Firebase Realtime Database</strong> is free from Google — no server needed. Both of you will see each other's changes live on any device.
+    </div>
+    <div class="step"><div class="step-num">1</div><div>Go to <strong>console.firebase.google.com</strong> → New project → Add a Web app</div></div>
+    <div class="step"><div class="step-num">2</div><div>In the left menu → <strong>Build → Realtime Database</strong> → Create database → choose <em>Start in test mode</em></div></div>
+    <div class="step"><div class="step-num">3</div><div>Go to <strong>Project Settings ⚙️ → Your apps</strong> → copy the <code>firebaseConfig</code> object and paste below</div></div>
+    <div class="form-field" style="margin-top:20px">
+      <label>Paste your Firebase config here</label>
+      <textarea id="firebase-config-input" rows="8" style="width:100%;padding:10px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-md);font-family:'DM Mono',monospace;font-size:12px;resize:vertical;color:var(--gray-900);background:var(--white);line-height:1.5" placeholder='{
+  "apiKey": "AIza...",
+  "authDomain": "your-app.firebaseapp.com",
+  "databaseURL": "https://your-app-default-rtdb.firebaseio.com",
+  "projectId": "your-app",
+  "storageBucket": "your-app.appspot.com",
+  "messagingSenderId": "123456789",
+  "appId": "1:123..."
+}'></textarea>
+    </div>
+    <button class="btn-save" style="width:100%;padding:12px;font-size:15px" onclick="saveFirebaseConfig()">
+      <i class="fas fa-rocket" style="margin-right:6px"></i>Connect & start tracking
+    </button>
+    <div id="config-error" style="color:var(--red);font-size:13px;margin-top:10px;display:none"></div>
+    <p style="margin-top:16px;font-size:12px;color:var(--gray-400)">Config is stored only in your browser. Share this HTML file with your husband — he pastes the same config once, then you're both connected.</p>
+  </div>
+</div>
+
+<!-- Main App -->
+<div id="app" style="display:none">
+  <header class="header">
+    <div class="logo">
+      <div class="logo-icon"><i class="fas fa-wallet"></i></div>
+      <span>Sunny & Riya</span>
+      <span class="logo-sub">Budget Tracker</span>
+    </div>
+    <div class="header-right">
+      <div class="sync-status">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span id="sync-label">Connecting…</span>
+      </div>
+      <div class="user-switcher">
+        <button class="user-btn active-sunny" id="btn-sunny" onclick="setUser('Sunny')">Sunny</button>
+        <button class="user-btn" id="btn-riya" onclick="setUser('Riya')">Riya</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <div class="month-bar">
+      <button class="month-navbtn" onclick="changeMonth(-1)">‹</button>
+      <div class="month-label" id="month-label">June 2025</div>
+      <button class="month-navbtn" onclick="changeMonth(1)">›</button>
+      <span class="month-badge" id="month-badge">Current month</span>
+    </div>
+
+    <div class="tabs-bar">
+      <button class="tab-btn active" onclick="showTab('overview')" id="tab-overview"><i class="fas fa-chart-pie fa-sm"></i> Overview</button>
+      <button class="tab-btn" onclick="showTab('expenses')" id="tab-expenses"><i class="fas fa-receipt fa-sm"></i> Expenses</button>
+      <button class="tab-btn" onclick="showTab('investments')" id="tab-investments"><i class="fas fa-seedling fa-sm"></i> Investments</button>
+      <button class="tab-btn" onclick="showTab('activity')" id="tab-activity"><i class="fas fa-history fa-sm"></i> Activity</button>
+    </div>
+
+    <!-- Overview Pane -->
+    <div id="pane-overview">
+      <div class="metrics-grid" id="metrics-grid"></div>
+      <div class="charts-row">
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title"><i class="fas fa-chart-bar fa-sm"></i> Budget vs actual</div>
+          <div class="chart-container" style="height:220px"><canvas id="barChart" role="img" aria-label="Bar chart: budget vs actual for income, expenses, investments"></canvas></div>
+          <div id="bar-legend" style="display:flex;gap:14px;margin-top:12px;font-size:12px;color:var(--gray-400)"></div>
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <div class="card-title"><i class="fas fa-users fa-sm"></i> Sunny vs Riya</div>
+          <div class="chart-container" style="height:220px"><canvas id="splitChart" role="img" aria-label="Grouped bar chart: Sunny vs Riya split across expenses, investments, income"></canvas></div>
+          <div style="display:flex;gap:14px;margin-top:12px;font-size:12px;color:var(--gray-400)">
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>Sunny</span>
+            <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#378ADD;display:inline-block"></span>Riya</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title"><i class="fas fa-chart-donut fa-sm"></i> Expense breakdown</div>
+        <div style="display:flex;align-items:center;gap:24px;flex-wrap:wrap">
+          <div class="chart-container" style="height:200px;width:200px;flex-shrink:0"><canvas id="donutChart" role="img" aria-label="Donut chart showing expense breakdown by category"></canvas></div>
+          <div id="donut-legend" style="flex:1;min-width:160px;font-size:13px;display:flex;flex-direction:column;gap:7px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Expenses Pane -->
+    <div id="pane-expenses" style="display:none">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-header-title"><i class="fas fa-receipt fa-sm"></i> Expenses — <span id="exp-month-label">June 2025</span></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th style="width:26%">Category</th>
+              <th style="text-align:right">Sunny (₹)</th>
+              <th style="text-align:right">Riya (₹)</th>
+              <th style="text-align:right">Combined</th>
+              <th style="text-align:right">Budget</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="expense-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <button class="btn-add" onclick="openAdd('expenses')"><i class="fas fa-plus fa-sm"></i> Add expense row</button>
+    </div>
+
+    <!-- Investments Pane -->
+    <div id="pane-investments" style="display:none">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-header-title"><i class="fas fa-seedling fa-sm"></i> Investments & savings — <span id="inv-month-label">June 2025</span></div>
+        </div>
+        <div style="overflow-x:auto">
+          <table>
+            <thead><tr>
+              <th style="width:26%">Category</th>
+              <th style="text-align:right">Sunny (₹)</th>
+              <th style="text-align:right">Riya (₹)</th>
+              <th style="text-align:right">Combined</th>
+              <th style="text-align:right">Budget</th>
+              <th style="width:36px"></th>
+            </tr></thead>
+            <tbody id="invest-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <button class="btn-add" onclick="openAdd('investments')"><i class="fas fa-plus fa-sm"></i> Add investment row</button>
+    </div>
+
+    <!-- Activity Pane -->
+    <div id="pane-activity" style="display:none">
+      <div class="table-card">
+        <div class="table-header">
+          <div class="table-header-title"><i class="fas fa-history fa-sm"></i> All changes</div>
+        </div>
+        <div id="activity-container"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add/Edit Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3 id="modal-title">Add row</h3>
+    <div class="form-field"><label>Category name</label><input id="f-cat" type="text" placeholder="e.g. Dining out" /></div>
+    <div class="form-field"><label>Sunny amount (₹)</label><input id="f-sunny" type="number" min="0" placeholder="0" /></div>
+    <div class="form-field"><label>Riya amount (₹)</label><input id="f-riya" type="number" min="0" placeholder="0" /></div>
+    <div class="form-field"><label>Budget / ideal amount (₹)</label><input id="f-budget" type="number" min="0" placeholder="0" /></div>
+    <div class="modal-actions">
+      <button class="btn-delete" id="btn-delete" onclick="deleteRow()" style="display:none"><i class="fas fa-trash fa-sm"></i> Delete</button>
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveModal()">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────
+let db = null;
+let currentUser = 'Sunny';
+let activeTab = 'overview';
+let addSection = 'expenses';
+let editIdx = null;
+let barChart, splitChart, donutChart;
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+let currentMonth = 5;
+let currentYear = 2025;
+
+const defaultData = () => ({
+  expenses: [
+    {cat:'Home loan EMI',sunny:0,riya:25000,budget:30000},
+    {cat:'Flat rent',sunny:0,riya:31000,budget:31000},
+    {cat:'Electricity bill',sunny:0,riya:4000,budget:4000},
+    {cat:'Groceries & food',sunny:20000,riya:0,budget:20000},
+    {cat:'Petrol',sunny:0,riya:10000,budget:10000},
+    {cat:'CC bills',sunny:51300,riya:9000,budget:0},
+    {cat:'Personal & lifestyle',sunny:0,riya:0,budget:20000},
+    {cat:'Badminton court',sunny:0,riya:6000,budget:6000},
+    {cat:'Badminton training',sunny:0,riya:4500,budget:4500},
+    {cat:'Couple counselling',sunny:0,riya:15000,budget:15000},
+    {cat:'Miscellaneous',sunny:55000,riya:0,budget:0},
+  ],
+  investments: [
+    {cat:'SIPs',sunny:17000,riya:10000,budget:27000},
+    {cat:'Mutual funds',sunny:0,riya:10000,budget:33000},
+    {cat:'Personal savings',sunny:0,riya:0,budget:0},
+    {cat:'NPS / FD / Stocks',sunny:0,riya:0,budget:0},
+  ],
+  income:{sunnyActual:128499,riyaActual:121566,sunnyOpening:15000,riyaOpening:3000,budget:230000},
+  activity:[]
+});
+
+let appData = null;
+
+// ── Firebase ────────────────────────────────────────────────────────────
+function getDataKey(){ return 'sr-budget-'+currentYear+'-'+currentMonth; }
+
+function saveFirebaseConfig(){
+  const raw = document.getElementById('firebase-config-input').value.trim();
+  let cfg;
+  try {
+    const s = raw.indexOf('{'), e = raw.lastIndexOf('}');
+    cfg = JSON.parse(raw.slice(s, e+1));
+    if (!cfg.databaseURL) throw new Error('Missing databaseURL — make sure Realtime Database is enabled');
+  } catch(err) {
+    const el = document.getElementById('config-error');
+    el.style.display='block'; el.textContent='Error: '+err.message;
+    return;
+  }
+  localStorage.setItem('sr-firebase-config', JSON.stringify(cfg));
+  initApp(cfg);
+}
+
+function initApp(cfg){
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(cfg);
+    db = firebase.database();
+    document.getElementById('setup-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    subscribeData();
+  } catch(e) {
+    localStorage.removeItem('sr-firebase-config');
+    alert('Firebase connection failed: '+e.message+'\n\nPlease re-enter your config.');
+    document.getElementById('setup-screen').style.display='flex';
+  }
+}
+
+function subscribeData(){
+  setSyncing();
+  db.ref(getDataKey()).on('value', snap => {
+    const v = snap.val();
+    appData = v ? JSON.parse(v) : defaultData();
+    setSynced();
+    render();
+  }, () => setSyncError());
+}
+
+async function pushData(){
+  setSyncing();
+  try { await db.ref(getDataKey()).set(JSON.stringify(appData)); setSynced(); }
+  catch { setSyncError(); }
+}
+
+// ── Sync UI ─────────────────────────────────────────────────────────────
+function setSyncing(){ document.getElementById('sync-dot').className='sync-dot syncing'; document.getElementById('sync-label').textContent='Saving…'; }
+function setSynced(){ document.getElementById('sync-dot').className='sync-dot'; document.getElementById('sync-label').textContent='Synced '+new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}); }
+function setSyncError(){ document.getElementById('sync-dot').className='sync-dot error'; document.getElementById('sync-label').textContent='Sync error'; }
+
+// ── User ────────────────────────────────────────────────────────────────
+function setUser(u){
+  currentUser = u;
+  document.getElementById('btn-sunny').className = 'user-btn'+(u==='Sunny'?' active-sunny':'');
+  document.getElementById('btn-riya').className = 'user-btn'+(u==='Riya'?' active-riya':'');
+}
+
+// ── Month ───────────────────────────────────────────────────────────────
+function changeMonth(d){
+  if (db) db.ref(getDataKey()).off();
+  currentMonth += d;
+  if (currentMonth>11){currentMonth=0;currentYear++;}
+  if (currentMonth<0){currentMonth=11;currentYear--;}
+  updateMonthLabel();
+  if (db) subscribeData();
+}
+function updateMonthLabel(){
+  const lbl = MONTHS[currentMonth]+' '+currentYear;
+  document.getElementById('month-label').textContent = lbl;
+  document.getElementById('exp-month-label').textContent = lbl;
+  document.getElementById('inv-month-label').textContent = lbl;
+  const now = new Date();
+  document.getElementById('month-badge').textContent = (currentMonth===now.getMonth()&&currentYear===now.getFullYear()) ? 'Current month' : MONTHS[currentMonth];
+}
+
+// ── Tabs ────────────────────────────────────────────────────────────────
+function showTab(t){
+  ['overview','expenses','investments','activity'].forEach(id => {
+    document.getElementById('pane-'+id).style.display = id===t ? '' : 'none';
+    document.getElementById('tab-'+id).classList.toggle('active', id===t);
+  });
+  activeTab = t;
+  if (t==='overview') setTimeout(renderCharts, 50);
+}
+
+// ── Format ──────────────────────────────────────────────────────────────
+function fmt(n){ return '₹'+Math.round(n||0).toLocaleString('en-IN'); }
+function pctOf(v,t){ return t ? Math.round(v/t*100) : 0; }
+function mkBadge(combined, budget){
+  if (!budget) return '';
+  const diff = combined - budget;
+  const p = Math.round(Math.abs(diff)/budget*100);
+  if (diff > budget*.05) return `<div><span class="badge badge-over">+${p}% over</span></div>`;
+  if (diff < -budget*.05) return `<div><span class="badge badge-under">−${p}% under</span></div>`;
+  return `<div><span class="badge badge-ok">On track</span></div>`;
+}
+
+// ── Render ──────────────────────────────────────────────────────────────
+function render(){
+  renderMetrics();
+  renderTable('expenses','expense-tbody');
+  renderTable('investments','invest-tbody');
+  renderActivity();
+  if (activeTab==='overview') renderCharts();
+}
+
+function renderMetrics(){
+  const d = appData;
+  const income = d.income.sunnyActual+d.income.riyaActual+d.income.sunnyOpening+d.income.riyaOpening;
+  const exp = d.expenses.reduce((s,r)=>s+r.sunny+r.riya,0);
+  const inv = d.investments.reduce((s,r)=>s+r.sunny+r.riya,0);
+  const surplus = income-exp-inv;
+  const ep = pctOf(exp,income), ip = pctOf(inv,income);
+  document.getElementById('metrics-grid').innerHTML=`
+    <div class="metric-card income"><div class="metric-icon income"><i class="fas fa-arrow-down-to-line"></i></div><div class="metric-label">Total income</div><div class="metric-value green">${fmt(income)}</div><div class="metric-sub">Budget ${fmt(d.income.budget)}</div></div>
+    <div class="metric-card expense"><div class="metric-icon expense"><i class="fas fa-arrow-up-from-line"></i></div><div class="metric-label">Expenses</div><div class="metric-value red">${fmt(exp)}</div><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(ep,100)}%;background:var(--red)"></div></div><div class="metric-sub">${ep}% of income · Budget ${fmt(d.expenses.reduce((s,r)=>s+r.budget,0))}</div></div>
+    <div class="metric-card invest"><div class="metric-icon invest"><i class="fas fa-seedling"></i></div><div class="metric-label">Investments</div><div class="metric-value amber">${fmt(inv)}</div><div class="progress-bar"><div class="progress-fill" style="width:${Math.min(ip,100)}%;background:var(--amber)"></div></div><div class="metric-sub">${ip}% of income · Budget ${fmt(d.investments.reduce((s,r)=>s+r.budget,0))}</div></div>
+    <div class="metric-card surplus"><div class="metric-icon surplus"><i class="fas fa-piggy-bank"></i></div><div class="metric-label">Net surplus</div><div class="metric-value ${surplus>=0?'green':'red'}">${fmt(surplus)}</div><div class="metric-sub">Ideal surplus ₹29,500</div></div>`;
+}
+
+function renderTable(section, tbodyId){
+  const rows = appData[section];
+  let html='', st=0, rt=0, bt=0;
+  rows.forEach((r,i)=>{
+    const combined=r.sunny+r.riya; st+=r.sunny; rt+=r.riya; bt+=r.budget;
+    html+=`<tr>
+      <td class="cat-name">${r.cat}</td>
+      <td class="editable"><input type="number" value="${r.sunny}" min="0" onchange="cellUpdate('${section}',${i},'sunny',this.value)" /></td>
+      <td class="editable"><input type="number" value="${r.riya}" min="0" onchange="cellUpdate('${section}',${i},'riya',this.value)" /></td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:13px">${fmt(combined)}${mkBadge(combined,r.budget)}</td>
+      <td style="text-align:right;font-family:'DM Mono',monospace;font-size:13px;color:var(--gray-400)">${r.budget>0?fmt(r.budget):'—'}</td>
+      <td><button onclick="openEdit('${section}',${i})" style="border:none;background:transparent;cursor:pointer;color:var(--gray-400);padding:4px 6px;border-radius:4px" title="Edit row"><i class="fas fa-pen fa-xs"></i></button></td>
+    </tr>`;
+  });
+  html+=`<tr class="total-row"><td>Total</td><td style="text-align:right">${fmt(st)}</td><td style="text-align:right">${fmt(rt)}</td><td style="text-align:right">${fmt(st+rt)}</td><td style="text-align:right;color:var(--gray-400)">${fmt(bt)}</td><td></td></tr>`;
+  document.getElementById(tbodyId).innerHTML=html;
+}
+
+async function cellUpdate(section, idx, field, val){
+  const nv = Math.max(0, parseFloat(val)||0);
+  const row = appData[section][idx];
+  if (row[field]===nv) return;
+  const old = row[field];
+  row[field] = nv;
+  appData.activity = appData.activity||[];
+  appData.activity.push({user:currentUser,cat:row.cat,field,old,newVal:nv,time:new Date().toISOString()});
+  if (appData.activity.length>100) appData.activity=appData.activity.slice(-100);
+  renderMetrics();
+  if (activeTab==='overview') renderCharts();
+  renderActivity();
+  await pushData();
+}
+
+function renderActivity(){
+  const log = [...(appData.activity||[])].reverse().slice(0,40);
+  const el = document.getElementById('activity-container');
+  if (!log.length){
+    el.innerHTML='<div class="empty-state"><i class="fas fa-history" style="font-size:28px;color:var(--gray-200);display:block;margin-bottom:10px"></i>No changes yet. Start editing numbers to see history here.</div>';
+    return;
+  }
+  el.innerHTML = log.map(a=>{
+    const t = new Date(a.time).toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});
+    const action = a.field==='added'?`added <strong>${a.cat}</strong>`:a.field==='deleted'?`deleted <strong>${a.cat}</strong>`:`updated <strong>${a.cat}</strong> (${a.field}): ${fmt(a.old)} → ${fmt(a.newVal)}`;
+    return `<div class="activity-item"><div><span class="activity-user ${a.user==='Sunny'?'sunny':'riya'}">${a.user}</span>${action}</div><div class="activity-time">${t}</div></div>`;
+  }).join('');
+}
+
+// ── Charts ──────────────────────────────────────────────────────────────
+const COLORS=['#1D9E75','#378ADD','#D85A30','#BA7517','#9F77DD','#5DCAA5','#F09595','#EF9F27','#97C459','#ED93B1','#85B7EB'];
+
+function renderCharts(){
+  const d=appData;
+  const income=d.income.sunnyActual+d.income.riyaActual+d.income.sunnyOpening+d.income.riyaOpening;
+  const expAct=d.expenses.reduce((s,r)=>s+r.sunny+r.riya,0);
+  const invAct=d.investments.reduce((s,r)=>s+r.sunny+r.riya,0);
+  const expBud=d.expenses.reduce((s,r)=>s+r.budget,0);
+  const invBud=d.investments.reduce((s,r)=>s+r.budget,0);
+
+  if(barChart)barChart.destroy();
+  barChart=new Chart(document.getElementById('barChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:['Income','Expenses','Investments'],datasets:[
+      {label:'Actual',data:[income,expAct,invAct],backgroundColor:['#1D9E75','#D85A30','#BA7517'],borderRadius:5},
+      {label:'Budget',data:[d.income.budget,expBud,invBud],backgroundColor:'#D3D1C7',borderRadius:5}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{ticks:{callback:v=>'₹'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'#F1EFEA'}},x:{ticks:{font:{size:12}},grid:{display:false}}}}
+  });
+  document.getElementById('bar-legend').innerHTML=`
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#1D9E75;display:inline-block"></span>Actual</span>
+    <span style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:2px;background:#D3D1C7;display:inline-block"></span>Budget</span>`;
+
+  if(splitChart)splitChart.destroy();
+  splitChart=new Chart(document.getElementById('splitChart').getContext('2d'),{
+    type:'bar',
+    data:{labels:['Expenses','Investments','Income'],datasets:[
+      {label:'Sunny',data:[d.expenses.reduce((s,r)=>s+r.sunny,0),d.investments.reduce((s,r)=>s+r.sunny,0),d.income.sunnyActual+d.income.sunnyOpening],backgroundColor:'#1D9E75',borderRadius:4},
+      {label:'Riya',data:[d.expenses.reduce((s,r)=>s+r.riya,0),d.investments.reduce((s,r)=>s+r.riya,0),d.income.riyaActual+d.income.riyaOpening],backgroundColor:'#378ADD',borderRadius:4}
+    ]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{ticks:{callback:v=>'₹'+(v/1000).toFixed(0)+'k',font:{size:11}},grid:{color:'#F1EFEA'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+
+  const expRows=d.expenses.filter(r=>r.sunny+r.riya>0);
+  if(donutChart)donutChart.destroy();
+  donutChart=new Chart(document.getElementById('donutChart').getContext('2d'),{
+    type:'doughnut',
+    data:{labels:expRows.map(r=>r.cat),datasets:[{data:expRows.map(r=>r.sunny+r.riya),backgroundColor:COLORS,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'65%'}
+  });
+  document.getElementById('donut-legend').innerHTML=expRows.map((r,i)=>{
+    const c=r.sunny+r.riya;
+    return `<div style="display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:2px;background:${COLORS[i]};flex-shrink:0;display:inline-block"></span><span style="flex:1;color:var(--gray-600);font-size:13px">${r.cat}</span><span style="font-family:'DM Mono',monospace;font-size:13px">${fmt(c)}</span><span style="color:var(--gray-400);font-size:12px;min-width:30px;text-align:right">${pctOf(c,expAct)}%</span></div>`;
+  }).join('');
+}
+
+// ── Modal ───────────────────────────────────────────────────────────────
+function openAdd(section){
+  addSection=section; editIdx=null;
+  document.getElementById('modal-title').textContent=section==='expenses'?'Add expense':'Add investment';
+  ['f-cat','f-sunny','f-riya','f-budget'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('btn-delete').style.display='none';
+  document.getElementById('modal').classList.add('open');
+}
+function openEdit(section, idx){
+  addSection=section; editIdx=idx;
+  const r=appData[section][idx];
+  document.getElementById('modal-title').textContent='Edit row';
+  document.getElementById('f-cat').value=r.cat;
+  document.getElementById('f-sunny').value=r.sunny;
+  document.getElementById('f-riya').value=r.riya;
+  document.getElementById('f-budget').value=r.budget;
+  document.getElementById('btn-delete').style.display='flex';
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+async function saveModal(){
+  const cat=document.getElementById('f-cat').value.trim();
+  if(!cat) return;
+  const row={cat,sunny:Math.max(0,parseFloat(document.getElementById('f-sunny').value)||0),riya:Math.max(0,parseFloat(document.getElementById('f-riya').value)||0),budget:Math.max(0,parseFloat(document.getElementById('f-budget').value)||0)};
+  appData.activity=appData.activity||[];
+  if(editIdx!==null){
+    const old=appData[addSection][editIdx];
+    appData.activity.push({user:currentUser,cat,field:'edited',old:old.sunny+old.riya,newVal:row.sunny+row.riya,time:new Date().toISOString()});
+    appData[addSection][editIdx]=row;
+  } else {
+    appData.activity.push({user:currentUser,cat,field:'added',old:0,newVal:row.sunny+row.riya,time:new Date().toISOString()});
+    appData[addSection].push(row);
+  }
+  closeModal();
+  await pushData();
+}
+
+async function deleteRow(){
+  if(editIdx===null)return;
+  const row=appData[addSection][editIdx];
+  appData.activity=appData.activity||[];
+  appData.activity.push({user:currentUser,cat:row.cat,field:'deleted',old:row.sunny+row.riya,newVal:0,time:new Date().toISOString()});
+  appData[addSection].splice(editIdx,1);
+  closeModal();
+  await pushData();
+}
+
+// ── Bootstrap ───────────────────────────────────────────────────────────
+updateMonthLabel();
+const saved=localStorage.getItem('sr-firebase-config');
+if(saved){
+  try{ initApp(JSON.parse(saved)); }
+  catch{ document.getElementById('setup-screen').style.display='flex'; }
+} else {
+  document.getElementById('setup-screen').style.display='flex';
+}
+document.getElementById('tab-overview').addEventListener('click',()=>setTimeout(renderCharts,60));
+document.getElementById('modal').addEventListener('click',e=>{ if(e.target===document.getElementById('modal'))closeModal(); });
+</script>
+</body>
+</html>
